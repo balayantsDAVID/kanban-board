@@ -1,0 +1,24 @@
+# env
+.env
+.env.local
+
+# python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+junit.xml
+backend/app/**/*.egg-info/
+
+# node
+node_modules/
+dist/
+web/.vite/
+
+# misc
+.DS_Store
+*.log
