@@ -411,7 +411,7 @@ class Extractor(Protocol):
 - [ ] `docker compose stop redis` → бот отвечает «перегружен», не падает; `start` → reconciler дорабатывает задачи
 - [ ] `docker compose restart postgres` → api и worker переподключаются сами
 - [ ] `docker compose kill worker` посреди джобы → после старта reconciler перезапускает задачу
-- [ ] Размеры образов: app < 250 МБ, worker < 1.2 ГБ, web < 60 МБ
+- [ ] Размеры образов: app < 400 МБ (python:3.12-slim + venv; alpine отклонён — риск долгой пересборки wheel'ов asyncpg/pydantic-core под musl), worker < 1.2 ГБ, web < 60 МБ
 - [ ] CI зелёный, `pre-commit run -a` зелёный
 
 Коммиты: `Add CI pipeline`, `Add README`
