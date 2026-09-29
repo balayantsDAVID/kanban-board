@@ -11,6 +11,7 @@ logs:
 
 test:
 	docker compose up -d postgres redis
+	docker compose run --rm migrate
 	cd backend && uv run pytest
 
 lint:
