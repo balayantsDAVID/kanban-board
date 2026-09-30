@@ -9,11 +9,15 @@ from redis.asyncio import Redis
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://app:app@localhost:5433/app")
-os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
+os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://app:app@localhost:5433/app_test")
+os.environ.setdefault("REDIS_URL", "redis://localhost:6379/15")
 os.environ.setdefault("TELEGRAM_BOT_TOKEN", "test-token")
 os.environ.setdefault("JWT_SECRET", "x" * 32)
 os.environ.setdefault("COOKIE_SECURE", "false")
+
+_db_name = os.environ["DATABASE_URL"].rsplit("/", 1)[-1].split("?")[0]
+if not _db_name.endswith("_test"):
+    pytest.exit(f"refusing to run tests against non-test database {_db_name!r}", returncode=2)
 
 from app.api.deps import _redis_client  # noqa: E402
 from app.api.main import create_app  # noqa: E402

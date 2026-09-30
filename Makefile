@@ -1,17 +1,27 @@
-.PHONY: up down logs test lint fmt migrate
+DEV = -f docker-compose.yml -f docker-compose.dev.yml
+TEST_DB = postgresql+asyncpg://app:app@localhost:5433/app_test
+
+.PHONY: up up-prod down clean logs test lint fmt migrate
 
 up:
-	docker compose up --build
+	docker compose $(DEV) up --build
+
+up-prod:
+	docker compose up --build -d
 
 down:
+	docker compose down
+
+clean:
 	docker compose down -v
 
 logs:
 	docker compose logs -f
 
 test:
-	docker compose up -d postgres redis
-	docker compose run --rm migrate
+	docker compose $(DEV) up -d --wait postgres redis
+	docker compose exec -T postgres psql -U app -d postgres -c "CREATE DATABASE app_test" || true
+	cd backend && DATABASE_URL=$(TEST_DB) uv run alembic upgrade head
 	cd backend && uv run pytest
 
 lint:
