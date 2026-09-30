@@ -17,14 +17,13 @@ dependencies = [
     "structlog==24.4.0",
     "dateparser==1.2.0",
     "httpx==0.28.1",
+    "openai==1.58.1",
 ]
 
 [project.optional-dependencies]
 worker = [
     "faster-whisper==1.1.0",
-]
-openai = [
-    "openai==1.58.1",
+    "requests==2.32.3",
 ]
 
 [dependency-groups]
@@ -50,10 +49,19 @@ python_version = "3.12"
 disallow_untyped_defs = true
 ignore_missing_imports = true
 
+[[tool.mypy.overrides]]
+module = "dateparser.*"
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
+
+[tool.uv]
+# The app only ever runs inside Docker (linux); resolving for macOS/Windows
+# too would fail on wheels like onnxruntime that don't ship for every host.
+environments = ["sys_platform == 'linux'"]
 
 [build-system]
 requires = ["hatchling"]

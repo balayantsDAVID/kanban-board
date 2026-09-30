@@ -10,6 +10,9 @@ START = (
 HELP = "Напиши задачу текстом или голосом.\n/login — ссылка для входа в дашборд"
 
 REDIS_UNAVAILABLE = "⚠️ Сервис перегружен, попробуй чуть позже."
+VOICE_ACK = "🎤 Распознаю…"
+VOICE_TOO_LONG = "⚠️ Голосовое слишком длинное, пришли короче или напиши текстом."
+TRANSCRIPTION_FAILED = "❌ Не смог распознать. Повтори в дашборде или пришли текстом."
 
 
 def login_link(link: str) -> str:
@@ -18,3 +21,11 @@ def login_link(link: str) -> str:
 
 def task_created(task_id: uuid.UUID, title: str) -> str:
     return f"✅ #{str(task_id)[:8]}: {title}"
+
+
+def task_transcribed(task_id: uuid.UUID, title: str, transcript: str) -> str:
+    return f"✅ #{str(task_id)[:8]}: {title}\n📝 {transcript}"
+
+
+def status_changed(task_id: uuid.UUID, status: str) -> str:
+    return f"🔄 #{str(task_id)[:8]} → {status}"

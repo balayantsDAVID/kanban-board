@@ -4,7 +4,7 @@ from datetime import datetime
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.errors import NotFound
+from app.core.errors import Conflict, NotFound
 from app.db.models import Priority, Source, Status, Task, TranscriptionStatus
 from app.schemas.task import TaskUpdate
 
@@ -84,6 +84,18 @@ async def delete(session: AsyncSession, user_id: uuid.UUID, task_id: uuid.UUID) 
     task = await get(session, user_id, task_id)
     await session.delete(task)
     await session.commit()
+
+
+async def retry(session: AsyncSession, user_id: uuid.UUID, task_id: uuid.UUID) -> Task:
+    task = await get(session, user_id, task_id)
+    if task.transcription_status != TranscriptionStatus.FAILED:
+        raise Conflict("task is not in a failed state")
+    task.transcription_status = TranscriptionStatus.QUEUED
+    task.transcription_error = None
+    task.transcription_attempt += 1
+    await session.commit()
+    await session.refresh(task)
+    return task
 
 
 async def stats(session: AsyncSession, user_id: uuid.UUID) -> dict[str, int]:

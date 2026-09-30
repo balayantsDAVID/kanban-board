@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import current_user, get_session
 from app.db.models import Source, Status, Task
+from app.queue.client import enqueue_transcription
 from app.schemas.task import TaskCreate, TaskOut, TaskUpdate
 from app.services import tasks as tasks_service
 
@@ -48,6 +49,17 @@ async def update_task(
     session: AsyncSession = Depends(get_session),
 ) -> Task:
     return await tasks_service.update(session, user_id, task_id, body)
+
+
+@router.post("/{task_id}/retry", response_model=TaskOut)
+async def retry_task(
+    task_id: uuid.UUID,
+    user_id: uuid.UUID = Depends(current_user),
+    session: AsyncSession = Depends(get_session),
+) -> Task:
+    task = await tasks_service.retry(session, user_id, task_id)
+    await enqueue_transcription(str(task.id), task.transcription_attempt)
+    return task
 
 
 @router.delete("/{task_id}", status_code=204)
