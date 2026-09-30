@@ -1,3 +1,4 @@
+import pytest
 import uuid
 
 from httpx import AsyncClient
@@ -53,3 +54,21 @@ async def test_stats_counts_by_status(auth_client: AsyncClient) -> None:
 async def test_tasks_require_auth(client: AsyncClient) -> None:
     resp = await client.get("/api/tasks")
     assert resp.status_code == 401
+
+
+async def test_redis_publish_failure_does_not_break_writes(
+    auth_client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from redis.asyncio import Redis
+    from redis.exceptions import ConnectionError as RedisConnectionError
+
+    async def boom(*_a: object, **_kw: object) -> int:
+        raise RedisConnectionError("down")
+
+    monkeypatch.setattr(Redis, "publish", boom)
+    created = await auth_client.post("/api/tasks", json={"title": "x"})
+    assert created.status_code == 201
+    patched = await auth_client.patch(
+        f"/api/tasks/{created.json()['id']}", json={"status": "completed"}
+    )
+    assert patched.status_code == 200

@@ -21,7 +21,7 @@ logs:
 test:
 	docker compose $(DEV) up -d --wait postgres redis
 	docker compose exec -T postgres psql -U app -d postgres -c "CREATE DATABASE app_test" || true
-	cd backend && DATABASE_URL=$(TEST_DB) uv run alembic upgrade head
+	cd backend && DATABASE_URL=$(TEST_DB) REDIS_URL=redis://localhost:6379/15 TELEGRAM_BOT_TOKEN=x JWT_SECRET=$$(printf 'x%.0s' $$(seq 32)) uv run alembic upgrade head
 	cd backend && uv run pytest
 
 lint:
