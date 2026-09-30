@@ -82,8 +82,6 @@ jobs:
       JWT_SECRET: ci-test-secret-not-for-production-use
       TELEGRAM_BOT_TOKEN: "123:test"
       WEB_URL: http://localhost:8080
-      TRANSCRIBER: fake
-      EXTRACTOR: rules
       APP_TZ: Asia/Yerevan
     steps:
       - uses: actions/checkout@v4
