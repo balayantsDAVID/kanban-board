@@ -72,3 +72,18 @@ async def test_redis_publish_failure_does_not_break_writes(
         f"/api/tasks/{created.json()['id']}", json={"status": "completed"}
     )
     assert patched.status_code == 200
+
+
+@pytest.mark.parametrize(
+    "body",
+    [{"title": None}, {"status": None}, {"priority": None}, {"title": "x" * 201}, {"title": "  "}],
+)
+async def test_invalid_patch_is_rejected(auth_client: AsyncClient, body: dict) -> None:
+    created = await auth_client.post("/api/tasks", json={"title": "x"})
+    resp = await auth_client.patch(f"/api/tasks/{created.json()['id']}", json=body)
+    assert resp.status_code == 422
+
+
+async def test_create_rejects_overlong_title(auth_client: AsyncClient) -> None:
+    resp = await auth_client.post("/api/tasks", json={"title": "x" * 201})
+    assert resp.status_code == 422

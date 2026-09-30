@@ -46,7 +46,7 @@ async def text_task(message: Message, user: User, session: AsyncSession, redis: 
         user_id=user.id,
         title=draft.title,
         source=Source.TEXT,
-        raw_text=body,
+        raw_text=body[:4000],
         tags=draft.tags,
         priority=draft.priority,
         due_at=draft.due_at,

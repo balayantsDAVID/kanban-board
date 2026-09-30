@@ -53,14 +53,18 @@ async def create(
 
 
 async def list_tasks(
-    session: AsyncSession, user_id: uuid.UUID, status: Status | None = None, q: str | None = None
+    session: AsyncSession,
+    user_id: uuid.UUID,
+    status: Status | None = None,
+    q: str | None = None,
+    limit: int = 200,
 ) -> list[Task]:
     stmt = select(Task).where(Task.user_id == user_id)
     if status is not None:
         stmt = stmt.where(Task.status == status)
     if q:
         stmt = stmt.where(Task.title.ilike(f"%{q}%"))
-    stmt = stmt.order_by(Task.created_at.desc())
+    stmt = stmt.order_by(Task.created_at.desc()).limit(limit)
     result = await session.execute(stmt)
     return list(result.scalars())
 

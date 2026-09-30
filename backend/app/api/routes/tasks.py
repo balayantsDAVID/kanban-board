@@ -1,6 +1,6 @@
 import uuid
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,10 +18,11 @@ stats_router = APIRouter(prefix="/api", tags=["tasks"])
 async def list_tasks(
     status: Status | None = None,
     q: str | None = None,
+    limit: int = Query(200, ge=1, le=500),
     user_id: uuid.UUID = Depends(current_user),
     session: AsyncSession = Depends(get_session),
 ) -> list[Task]:
-    return await tasks_service.list_tasks(session, user_id, status=status, q=q)
+    return await tasks_service.list_tasks(session, user_id, status=status, q=q, limit=limit)
 
 
 @router.post("", response_model=TaskOut, status_code=201)
