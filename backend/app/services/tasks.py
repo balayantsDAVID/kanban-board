@@ -1,16 +1,19 @@
 import uuid
 from datetime import datetime
 
+from redis.asyncio import Redis
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import Conflict, NotFound
 from app.db.models import Priority, Source, Status, Task, TranscriptionStatus
 from app.schemas.task import TaskUpdate
+from app.services.events import publish
 
 
 async def create(
     session: AsyncSession,
+    redis: Redis,
     *,
     user_id: uuid.UUID,
     title: str,
@@ -42,6 +45,7 @@ async def create(
     session.add(task)
     await session.commit()
     await session.refresh(task)
+    await publish(redis, user_id, "task.created", task)
     return task
 
 
@@ -70,20 +74,31 @@ async def get(session: AsyncSession, user_id: uuid.UUID, task_id: uuid.UUID) -> 
 
 
 async def update(
-    session: AsyncSession, user_id: uuid.UUID, task_id: uuid.UUID, data: TaskUpdate
+    session: AsyncSession, redis: Redis, user_id: uuid.UUID, task_id: uuid.UUID, data: TaskUpdate
 ) -> Task:
     task = await get(session, user_id, task_id)
-    for field, value in data.model_dump(exclude_unset=True).items():
+    changes = data.model_dump(exclude_unset=True)
+    status_changed = "status" in changes and changes["status"] != task.status
+    for field, value in changes.items():
         setattr(task, field, value)
     await session.commit()
     await session.refresh(task)
+    await publish(redis, user_id, "task.updated", task)
+    if status_changed and task.tg_chat_id is not None:
+        from app.bot import texts
+        from app.queue.client import enqueue_notification
+
+        await enqueue_notification(task.tg_chat_id, texts.status_changed(task.id, task.status))
     return task
 
 
-async def delete(session: AsyncSession, user_id: uuid.UUID, task_id: uuid.UUID) -> None:
+async def delete(
+    session: AsyncSession, redis: Redis, user_id: uuid.UUID, task_id: uuid.UUID
+) -> None:
     task = await get(session, user_id, task_id)
     await session.delete(task)
     await session.commit()
+    await publish(redis, user_id, "task.deleted", task)
 
 
 async def retry(session: AsyncSession, user_id: uuid.UUID, task_id: uuid.UUID) -> Task:

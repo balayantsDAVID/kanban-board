@@ -1,9 +1,10 @@
 import uuid
 
 from fastapi import APIRouter, Depends
+from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import current_user, get_session
+from app.api.deps import current_user, get_redis, get_session
 from app.db.models import Source, Status, Task
 from app.queue.client import enqueue_transcription
 from app.schemas.task import TaskCreate, TaskOut, TaskUpdate
@@ -28,9 +29,11 @@ async def create_task(
     body: TaskCreate,
     user_id: uuid.UUID = Depends(current_user),
     session: AsyncSession = Depends(get_session),
+    redis: Redis = Depends(get_redis),
 ) -> Task:
     return await tasks_service.create(
         session,
+        redis,
         user_id=user_id,
         title=body.title,
         source=Source.WEB,
@@ -47,8 +50,9 @@ async def update_task(
     body: TaskUpdate,
     user_id: uuid.UUID = Depends(current_user),
     session: AsyncSession = Depends(get_session),
+    redis: Redis = Depends(get_redis),
 ) -> Task:
-    return await tasks_service.update(session, user_id, task_id, body)
+    return await tasks_service.update(session, redis, user_id, task_id, body)
 
 
 @router.post("/{task_id}/retry", response_model=TaskOut)
@@ -67,8 +71,9 @@ async def delete_task(
     task_id: uuid.UUID,
     user_id: uuid.UUID = Depends(current_user),
     session: AsyncSession = Depends(get_session),
+    redis: Redis = Depends(get_redis),
 ) -> None:
-    await tasks_service.delete(session, user_id, task_id)
+    await tasks_service.delete(session, redis, user_id, task_id)
 
 
 @stats_router.get("/stats")

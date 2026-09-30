@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 
-from app.api.routes import auth, system, tasks
+from app.api.routes import auth, events, system, tasks
 from app.core.config import get_settings
 from app.core.errors import register_error_handlers
 from app.core.logging import configure_logging
@@ -14,6 +14,7 @@ def create_app() -> FastAPI:
     app.include_router(auth.router)
     app.include_router(tasks.router)
     app.include_router(tasks.stats_router)
+    app.include_router(events.router)
     return app
 
 

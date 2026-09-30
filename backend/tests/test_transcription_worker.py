@@ -32,9 +32,10 @@ def _ctx(redis: Redis, transcriber: object, job_try: int = 1) -> dict:
     }
 
 
-async def _voice_task(session: AsyncSession, user: User):
+async def _voice_task(session: AsyncSession, redis: Redis, user: User):
     return await tasks_service.create(
         session,
+        redis,
         user_id=user.id,
         title="🎤 Голосовое…",
         source=Source.VOICE,
@@ -54,7 +55,7 @@ async def test_retries_then_fails_after_max_tries(
         notified.append((chat_id, msg))
 
     monkeypatch.setattr(transcription, "enqueue_notification", fake_notify)
-    task = await _voice_task(session, user)
+    task = await _voice_task(session, redis, user)
     fake = FakeTranscriber(fail=True)
 
     with pytest.raises(Retry):
@@ -80,7 +81,7 @@ async def test_timeout_is_treated_as_failure(
         async def transcribe(self, _audio: bytes):
             await asyncio.sleep(1)
 
-    task = await _voice_task(session, user)
+    task = await _voice_task(session, redis, user)
     with pytest.raises(Retry):
         await transcription.transcribe(_ctx(redis, SlowTranscriber(), job_try=1), str(task.id), 1)
 
@@ -94,7 +95,7 @@ async def test_successful_transcription_is_idempotent_on_replay(
         notified.append((chat_id, msg))
 
     monkeypatch.setattr(transcription, "enqueue_notification", fake_notify)
-    task = await _voice_task(session, user)
+    task = await _voice_task(session, redis, user)
     fake = FakeTranscriber(text="buy milk")
 
     await transcription.transcribe(_ctx(redis, fake, job_try=1), str(task.id), 1)
@@ -120,7 +121,7 @@ async def test_reconcile_requeues_stuck_task(
         enqueued.append((task_id, attempt))
 
     monkeypatch.setattr(transcription, "enqueue_transcription", fake_enqueue)
-    task = await _voice_task(session, user)
+    task = await _voice_task(session, redis, user)
     old = datetime.now(UTC) - timedelta(minutes=10)
     await session.execute(
         text("UPDATE tasks SET updated_at = :dt WHERE id = :id"), {"dt": old, "id": task.id}
@@ -139,7 +140,7 @@ async def test_reconcile_gives_up_after_max_attempts(
         return None
 
     monkeypatch.setattr(transcription, "enqueue_transcription", fake_enqueue)
-    task = await _voice_task(session, user)
+    task = await _voice_task(session, redis, user)
     old = datetime.now(UTC) - timedelta(minutes=10)
     await session.execute(
         text("UPDATE tasks SET updated_at = :dt, transcription_attempt = :n WHERE id = :id"),

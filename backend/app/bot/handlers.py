@@ -35,13 +35,14 @@ async def login(message: Message, user: User, redis: Redis) -> None:
 
 
 @router.message(F.text)
-async def text_task(message: Message, user: User, session: AsyncSession) -> None:
+async def text_task(message: Message, user: User, session: AsyncSession, redis: Redis) -> None:
     body = (message.text or "").strip()
     if not body:
         return
     draft = await build_extractor().extract(body, datetime.now(UTC))
     task = await tasks_service.create(
         session,
+        redis,
         user_id=user.id,
         title=draft.title,
         source=Source.TEXT,
@@ -55,7 +56,7 @@ async def text_task(message: Message, user: User, session: AsyncSession) -> None
 
 
 @router.message(F.voice)
-async def voice_task(message: Message, user: User, session: AsyncSession) -> None:
+async def voice_task(message: Message, user: User, session: AsyncSession, redis: Redis) -> None:
     voice = message.voice
     assert voice is not None
     settings = get_settings()
@@ -66,6 +67,7 @@ async def voice_task(message: Message, user: User, session: AsyncSession) -> Non
     ack = await message.answer(texts.VOICE_ACK)
     task = await tasks_service.create(
         session,
+        redis,
         user_id=user.id,
         title=texts.VOICE_ACK,
         source=Source.VOICE,

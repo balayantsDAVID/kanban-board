@@ -352,6 +352,7 @@ class Extractor(Protocol):
 
 ✅ **DoD:** тест: POST задачи → в SSE-потоке приходит `task.created`.
 🔍 `curl -N -b "session=$JWT" localhost:8000/api/events` + создать задачу в боте
+⚠️ `httpx.ASGITransport` не отдаёт чанки инкрементально — он буферизует весь ответ до завершения генератора, поэтому бесконечный SSE-поток через `AsyncClient.stream()` в тесте зависает навсегда. Тест вызывает generator `_stream()` напрямую (реальные Redis pub/sub + БД), минуя HTTP-слой.
 Коммит: `Add realtime events over SSE`
 
 ---

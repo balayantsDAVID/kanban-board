@@ -1,5 +1,13 @@
 import uuid
 
+from app.db.models import Status
+
+STATUS_LABELS = {
+    Status.PENDING: "Pending",
+    Status.IN_PROGRESS: "In Progress",
+    Status.COMPLETED: "Completed",
+}
+
 START = (
     "👋 Привет! Я превращаю текст и голосовые сообщения в задачи.\n\n"
     "Просто напиши задачу или запиши голосовое.\n\n"
@@ -27,5 +35,5 @@ def task_transcribed(task_id: uuid.UUID, title: str, transcript: str) -> str:
     return f"✅ #{str(task_id)[:8]}: {title}\n📝 {transcript}"
 
 
-def status_changed(task_id: uuid.UUID, status: str) -> str:
-    return f"🔄 #{str(task_id)[:8]} → {status}"
+def status_changed(task_id: uuid.UUID, status: Status) -> str:
+    return f"🔄 #{str(task_id)[:8]} → {STATUS_LABELS[status]}"
