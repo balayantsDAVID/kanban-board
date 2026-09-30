@@ -59,9 +59,7 @@ asyncio_default_fixture_loop_scope = "function"
 testpaths = ["tests"]
 
 [tool.uv]
-# The app only ever runs inside Docker (linux); resolving for macOS/Windows
-# too would fail on wheels like onnxruntime that don't ship for every host.
-environments = ["sys_platform == 'linux'"]
+environments = ["sys_platform == 'linux'", "sys_platform == 'darwin'"]
 
 [build-system]
 requires = ["hatchling"]
