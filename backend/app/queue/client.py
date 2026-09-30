@@ -34,7 +34,6 @@ async def enqueue_transcription(task_id: str, attempt: int = 1) -> None:
 
 
 async def enqueue_notification(chat_id: int, text: str, message_id: int | None = None) -> None:
-    # Best-effort, same reasoning as events.publish.
     try:
         pool = await get_pool()
         await pool.enqueue_job(

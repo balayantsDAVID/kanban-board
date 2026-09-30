@@ -42,7 +42,7 @@ class RulesExtractor:
             priority = Priority.HIGH
             working = _HIGH_RE.sub("", working)
 
-        # dateparser is CPU-bound and sync; keep it off the event loop.
+        # dateparser is sync and CPU-bound
         due_at, working = await asyncio.to_thread(self._extract_due_date, working, now)
 
         title = self._clean_title(working) or self._clean_title(text)

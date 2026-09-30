@@ -27,7 +27,7 @@ NO_SPEECH = "🔇 Не услышал речи в сообщении. Попро
 
 
 def login_link(link: str) -> str:
-    # HTML anchor: Telegram doesn't auto-linkify hosts without a TLD (localhost).
+    # Telegram doesn't auto-linkify hosts without a TLD (localhost).
     return f'🔑 <a href="{link}">Открыть дашборд</a> (ссылка действует 5 минут)'
 
 

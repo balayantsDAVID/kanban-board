@@ -71,7 +71,6 @@ async def transcribe(ctx: dict[str, Any], task_id: str, attempt: int) -> None:
                 raise _NoSpeech
             draft = await extract_safe(extractor, transcript.text, datetime.now(UTC))
         except _NoSpeech:
-            # Retrying would transcribe the same silence again.
             await _mark_failed(session, redis, task, "no speech detected", texts.NO_SPEECH)
             return
         except Exception as exc:

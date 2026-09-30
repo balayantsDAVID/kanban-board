@@ -16,8 +16,7 @@ async def publish(redis: Redis, user_id: uuid.UUID, event_type: str, task: Task)
     envelope = json.dumps(
         {"type": event_type, "task": TaskOut.model_validate(task).model_dump(mode="json")}
     )
-    # Best-effort: the DB commit already happened, so a Redis outage must not
-    # turn a successful write into an error for the client.
+    # Best-effort: the commit already happened.
     try:
         await redis.publish(f"events:user:{user_id}", envelope)
     except (RedisError, OSError):
