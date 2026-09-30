@@ -2,11 +2,15 @@ import uuid
 from datetime import datetime
 from enum import StrEnum
 
-from sqlalchemy import ARRAY, BigInteger, ForeignKey, Index, String, func, text
+from sqlalchemy import ARRAY, BigInteger, CheckConstraint, ForeignKey, Index, String, func, text
 from sqlalchemy.dialects.postgresql import JSONB, TIMESTAMP
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+
+
+def _in_list(column: str, enum: type[StrEnum]) -> str:
+    return f"{column} IN ({', '.join(repr(m.value) for m in enum)})"
 
 
 class Status(StrEnum):
@@ -95,6 +99,13 @@ class Task(Base):
     user: Mapped["User"] = relationship(back_populates="tasks")
 
     __table_args__ = (
+        CheckConstraint(_in_list("status", Status), name="status_valid"),
+        CheckConstraint(_in_list("priority", Priority), name="priority_valid"),
+        CheckConstraint(_in_list("source", Source), name="source_valid"),
+        CheckConstraint(
+            _in_list("transcription_status", TranscriptionStatus),
+            name="transcription_status_valid",
+        ),
         Index("ix_tasks_user_status", "user_id", "status"),
         Index("ix_tasks_user_created", "user_id", "created_at"),
         Index(
