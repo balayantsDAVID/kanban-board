@@ -12,10 +12,11 @@ from redis.asyncio import Redis
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.ai.extractor import Extractor, build_extractor
+from app.ai.extractor import Extractor, build_extractor, extract_safe
 from app.ai.transcriber import Transcriber, build_transcriber
 from app.bot import texts
 from app.core.config import get_settings
+from app.core.limits import MAX_ATTEMPTS
 from app.core.logging import get_logger
 from app.db.models import Task, TranscriptionStatus
 from app.db.session import get_sessionmaker
@@ -31,7 +32,6 @@ TRANSCRIBE_TIMEOUT_SEC = 90
 STUCK_AFTER_MIN = 5
 MAX_TRIES = 3
 DOWNLOAD_TIMEOUT_SEC = 30
-from app.core.limits import MAX_ATTEMPTS
 
 
 class _NoSpeech(Exception):
@@ -69,7 +69,7 @@ async def transcribe(ctx: dict[str, Any], task_id: str, attempt: int) -> None:
             )
             if not transcript.text.strip():
                 raise _NoSpeech
-            draft = await extractor.extract(transcript.text, datetime.now(UTC))
+            draft = await extract_safe(extractor, transcript.text, datetime.now(UTC))
         except _NoSpeech:
             # Retrying would transcribe the same silence again.
             await _mark_failed(session, redis, task, "no speech detected", texts.NO_SPEECH)

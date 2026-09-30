@@ -39,3 +39,17 @@ async def test_title_falls_back_to_original_when_extraction_empties_it() -> None
 
     assert draft.priority == Priority.URGENT
     assert draft.title
+
+
+async def test_extract_safe_falls_back_when_extractor_hangs() -> None:
+    import asyncio
+    from datetime import UTC, datetime
+
+    from app.ai.extractor import extract_safe
+
+    class Hung:
+        async def extract(self, text: str, now: datetime):
+            await asyncio.sleep(10)
+
+    draft = await extract_safe(Hung(), "buy milk", datetime.now(UTC), timeout=0.05)  # type: ignore[arg-type]
+    assert draft.title == "buy milk"

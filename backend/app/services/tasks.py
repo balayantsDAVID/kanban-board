@@ -6,8 +6,8 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import Conflict, NotFound
-from app.db.models import Priority, Source, Status, Task, TranscriptionStatus
 from app.core.limits import MAX_ATTEMPTS
+from app.db.models import Priority, Source, Status, Task, TranscriptionStatus
 from app.schemas.task import TaskUpdate
 from app.services.events import publish
 

@@ -7,7 +7,7 @@ from redis.asyncio import Redis
 from redis.exceptions import RedisError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.ai.extractor import build_extractor
+from app.ai.extractor import build_extractor, extract_safe
 from app.bot import texts
 from app.core.config import get_settings
 from app.db.models import Source, TranscriptionStatus, User
@@ -39,7 +39,7 @@ async def text_task(message: Message, user: User, session: AsyncSession, redis: 
     body = (message.text or "").strip()
     if not body:
         return
-    draft = await build_extractor().extract(body, datetime.now(UTC))
+    draft = await extract_safe(build_extractor(), body, datetime.now(UTC))
     task = await tasks_service.create(
         session,
         redis,

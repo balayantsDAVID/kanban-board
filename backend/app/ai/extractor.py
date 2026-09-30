@@ -1,6 +1,8 @@
+import asyncio
 import re
 from dataclasses import dataclass
 from datetime import datetime
+from functools import lru_cache
 from typing import Protocol
 
 from app.core.config import get_settings
@@ -11,6 +13,7 @@ _URGENT_RE = re.compile(r"срочно|urgent|asap|!!+", re.IGNORECASE)
 _HIGH_RE = re.compile(r"важно|important", re.IGNORECASE)
 
 MAX_TITLE_LEN = 120
+EXTRACT_TIMEOUT_SEC = 3.0
 
 
 @dataclass
@@ -39,7 +42,8 @@ class RulesExtractor:
             priority = Priority.HIGH
             working = _HIGH_RE.sub("", working)
 
-        due_at, working = self._extract_due_date(working, now)
+        # dateparser is CPU-bound and sync; keep it off the event loop.
+        due_at, working = await asyncio.to_thread(self._extract_due_date, working, now)
 
         title = self._clean_title(working) or self._clean_title(text)
         return TaskDraft(title=title, tags=tags, priority=priority, due_at=due_at)
@@ -119,6 +123,20 @@ class FakeExtractor:
         return TaskDraft(title=text[:MAX_TITLE_LEN], tags=[], priority=Priority.NORMAL, due_at=None)
 
 
+async def extract_safe(
+    extractor: Extractor,
+    text: str,
+    now: datetime,
+    timeout: float = EXTRACT_TIMEOUT_SEC,  # noqa: ASYNC109
+) -> TaskDraft:
+    try:
+        async with asyncio.timeout(timeout):
+            return await extractor.extract(text, now)
+    except Exception:
+        return TaskDraft(title=text[:MAX_TITLE_LEN], tags=[], priority=Priority.NORMAL, due_at=None)
+
+
+@lru_cache
 def build_extractor() -> Extractor:
     settings = get_settings()
     if settings.extractor == "llm":
