@@ -1,21 +1,37 @@
+import uuid
 from datetime import UTC, datetime
 
 from aiogram import F, Router
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import Command, CommandStart
-from aiogram.types import Message
+from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 from redis.asyncio import Redis
 from redis.exceptions import RedisError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.extractor import build_extractor, extract_safe
 from app.core.config import get_settings
-from app.db.models import Source, TranscriptionStatus, User
+from app.db.models import Source, Status, TranscriptionStatus, User
 from app.queue.client import enqueue_transcription
+from app.schemas.task import TaskUpdate
 from app.services import auth as auth_service
 from app.services import tasks as tasks_service
 from app.services import texts
 
 router = Router()
+
+_CALLBACK_STATUS = {"p": Status.PENDING, "i": Status.IN_PROGRESS, "c": Status.COMPLETED}
+
+
+def _status_keyboard(task_id: object) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="▶ In Progress", callback_data=f"st:{task_id}:i"),
+                InlineKeyboardButton(text="✅ Done", callback_data=f"st:{task_id}:c"),
+            ]
+        ]
+    )
 
 
 @router.message(CommandStart())
@@ -32,6 +48,41 @@ async def help_cmd(message: Message) -> None:
 async def login(message: Message, user: User, redis: Redis) -> None:
     link = await auth_service.issue_login_link(redis, get_settings(), user.id)
     await message.answer(texts.login_link(link), parse_mode="HTML", disable_web_page_preview=True)
+
+
+@router.message(Command("tasks"))
+async def list_tasks(message: Message, user: User, session: AsyncSession) -> None:
+    open_tasks = [
+        t
+        for t in await tasks_service.list_tasks(session, user.id, limit=50)
+        if t.status != Status.COMPLETED
+    ][:10]
+    if not open_tasks:
+        await message.answer(texts.NO_OPEN_TASKS)
+        return
+    await message.answer(texts.task_list([(t.id, t.title, t.status) for t in open_tasks]))
+
+
+@router.callback_query(F.data.startswith("st:"))
+async def status_callback(
+    callback: CallbackQuery, user: User, session: AsyncSession, redis: Redis
+) -> None:
+    _, task_id, code = callback.data.split(":")  # type: ignore[union-attr]
+    status = _CALLBACK_STATUS[code]
+    task = await tasks_service.update(
+        session,
+        redis,
+        user.id,
+        uuid.UUID(task_id),
+        TaskUpdate(status=status),
+        notify=False,
+    )
+    try:
+        await callback.message.edit_text(texts.status_changed(task.id, task.status))  # type: ignore[union-attr]
+    except TelegramBadRequest as exc:
+        if "message is not modified" not in str(exc):
+            raise
+    await callback.answer()
 
 
 @router.message(F.text)
@@ -52,7 +103,9 @@ async def text_task(message: Message, user: User, session: AsyncSession, redis: 
         due_at=draft.due_at,
         tg_chat_id=message.chat.id,
     )
-    await message.answer(texts.task_created(task.id, task.title))
+    await message.answer(
+        texts.task_created(task.id, task.title), reply_markup=_status_keyboard(task.id)
+    )
 
 
 @router.message(F.voice)

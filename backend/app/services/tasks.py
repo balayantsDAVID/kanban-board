@@ -85,7 +85,12 @@ async def get(session: AsyncSession, user_id: uuid.UUID, task_id: uuid.UUID) -> 
 
 
 async def update(
-    session: AsyncSession, redis: Redis, user_id: uuid.UUID, task_id: uuid.UUID, data: TaskUpdate
+    session: AsyncSession,
+    redis: Redis,
+    user_id: uuid.UUID,
+    task_id: uuid.UUID,
+    data: TaskUpdate,
+    notify: bool = True,
 ) -> Task:
     task = await get(session, user_id, task_id)
     changes = data.model_dump(exclude_unset=True)
@@ -98,7 +103,7 @@ async def update(
     await session.commit()
     await session.refresh(task)
     await publish(redis, user_id, "task.updated", task)
-    if status_changed and task.tg_chat_id is not None:
+    if notify and status_changed and task.tg_chat_id is not None:
         await enqueue_notification(task.tg_chat_id, texts.status_changed(task.id, task.status))
     return task
 

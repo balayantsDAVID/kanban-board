@@ -42,3 +42,11 @@ def task_transcribed(task_id: uuid.UUID, title: str, transcript: str, seconds: f
 
 def status_changed(task_id: uuid.UUID, status: Status) -> str:
     return f"🔄 #{str(task_id)[:8]} → {STATUS_LABELS[status]}"
+
+
+NO_OPEN_TASKS = "Нет открытых задач."
+
+
+def task_list(tasks: list[tuple[uuid.UUID, str, Status]]) -> str:
+    lines = [f"#{str(tid)[:8]} [{STATUS_LABELS[status]}] {title}" for tid, title, status in tasks]
+    return "\n".join(lines)

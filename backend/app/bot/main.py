@@ -20,6 +20,7 @@ async def main() -> None:
     dp = Dispatcher()
     dp.include_router(router)
     dp.message.middleware(DbSessionMiddleware())
+    dp.callback_query.middleware(DbSessionMiddleware())
     dp["redis"] = redis
 
     await bot.delete_webhook(drop_pending_updates=True)
