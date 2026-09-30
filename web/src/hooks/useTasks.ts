@@ -10,14 +10,27 @@ export interface TaskEvent {
 export function useTasks() {
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   const refetch = useCallback(async () => {
-    setTasks(await api.tasks())
+    try {
+      setTasks(await api.tasks())
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load tasks')
+    }
   }, [])
 
   useEffect(() => {
-    void refetch().finally(() => setLoading(false))
-  }, [refetch])
+    let cancelled = false
+    api
+      .tasks()
+      .then((list) => !cancelled && setTasks(list))
+      .catch((err) => !cancelled && setError(err instanceof Error ? err.message : 'Failed to load tasks'))
+      .finally(() => !cancelled && setLoading(false))
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const updateStatus = useCallback(async (id: string, status: Status) => {
     let previous: Task[] = []
@@ -29,13 +42,17 @@ export function useTasks() {
       await api.updateTask(id, { status })
     } catch (err) {
       setTasks(previous)
-      throw err
+      setError(err instanceof Error ? err.message : 'Failed to update task')
     }
   }, [])
 
   const retry = useCallback(async (id: string) => {
-    const task = await api.retryTask(id)
-    setTasks((current) => current.map((t) => (t.id === id ? task : t)))
+    try {
+      const task = await api.retryTask(id)
+      setTasks((current) => current.map((t) => (t.id === id ? task : t)))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Retry failed')
+    }
   }, [])
 
   const applyEvent = useCallback((event: TaskEvent) => {
@@ -51,5 +68,5 @@ export function useTasks() {
     })
   }, [])
 
-  return { tasks, loading, refetch, updateStatus, retry, applyEvent }
+  return { tasks, loading, error, clearError: () => setError(null), refetch, updateStatus, retry, applyEvent }
 }

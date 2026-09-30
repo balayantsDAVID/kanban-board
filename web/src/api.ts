@@ -9,6 +9,12 @@ export class ApiError extends Error {
   }
 }
 
+export const AUTH_EXPIRED = 'auth:expired'
+
+export function notifyAuthExpired() {
+  window.dispatchEvent(new Event(AUTH_EXPIRED))
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`/api${path}`, {
     credentials: 'same-origin',
@@ -16,6 +22,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
   })
   if (!res.ok) {
+    if (res.status === 401 && path !== '/auth/me') notifyAuthExpired()
     const body = await res.json().catch(() => null)
     throw new ApiError(res.status, body?.error?.message ?? res.statusText)
   }

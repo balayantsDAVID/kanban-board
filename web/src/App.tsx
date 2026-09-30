@@ -3,19 +3,20 @@ import { useAuth } from './hooks/useAuth'
 import { useEventStream } from './hooks/useEventStream'
 import { useTasks } from './hooks/useTasks'
 
-function LoginGate() {
+function LoginGate({ error }: { error: string | null }) {
   return (
     <div className="flex h-screen items-center justify-center bg-slate-950 text-slate-200">
       <div className="rounded-lg border border-slate-800 bg-slate-900 p-8 text-center">
         <p className="text-lg font-medium">Not signed in</p>
         <p className="mt-2 text-slate-400">Send /login to the bot in Telegram to open a link here.</p>
+        {error && <p className="mt-3 text-sm text-amber-400">{error}</p>}
       </div>
     </div>
   )
 }
 
 function Dashboard({ onLogout }: { onLogout: () => void }) {
-  const { tasks, refetch, updateStatus, retry, applyEvent } = useTasks()
+  const { tasks, loading, error, clearError, refetch, updateStatus, retry, applyEvent } = useTasks()
   const connection = useEventStream(applyEvent, refetch)
 
   const counts = {
@@ -52,10 +53,19 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
             </button>
           </div>
         </header>
+        {error && (
+          <div className="mb-4 flex items-center justify-between rounded border border-red-900 bg-red-950 px-3 py-2 text-sm text-red-300">
+            <span>{error}</span>
+            <button onClick={clearError} className="ml-3 text-red-400 hover:text-red-200">
+              ✕
+            </button>
+          </div>
+        )}
+        {loading && <p className="mb-4 text-sm text-slate-500">Loading…</p>}
         <Board
           tasks={tasks}
-          onStatusChange={(id, status) => void updateStatus(id, status).catch(() => {})}
-          onRetry={(id) => void retry(id).catch(() => {})}
+          onStatusChange={(id, status) => void updateStatus(id, status)}
+          onRetry={(id) => void retry(id)}
         />
       </div>
     </div>
@@ -63,9 +73,9 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
 }
 
 export default function App() {
-  const { user, loading, logout } = useAuth()
+  const { user, loading, loginError, logout } = useAuth()
 
-  if (loading) return null
-  if (!user) return <LoginGate />
+  if (loading) return <div className="h-screen bg-slate-950" />
+  if (!user) return <LoginGate error={loginError} />
   return <Dashboard onLogout={logout} />
 }

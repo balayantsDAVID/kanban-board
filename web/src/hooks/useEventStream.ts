@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { notifyAuthExpired } from '../api'
 import type { TaskEvent } from './useTasks'
 
 const BACKOFF_SEC = [1, 2, 5, 10]
@@ -20,16 +21,12 @@ export function useEventStream(onEvent: (event: TaskEvent) => void, onReconnect:
     let retryTimer: ReturnType<typeof setTimeout> | null = null
     let attempt = 0
     let stopped = false
-    let everConnected = false
 
     function connect() {
       source = new EventSource('/api/events')
 
       source.onopen = () => {
-        if (everConnected) {
-          void onReconnectRef.current()
-        }
-        everConnected = true
+        void onReconnectRef.current()
         attempt = 0
         setState('connected')
       }
@@ -47,7 +44,20 @@ export function useEventStream(onEvent: (event: TaskEvent) => void, onReconnect:
         setState('reconnecting')
         const delay = BACKOFF_SEC[Math.min(attempt, BACKOFF_SEC.length - 1)] * 1000
         attempt += 1
-        retryTimer = setTimeout(connect, delay)
+        // EventSource hides the status code, so probe auth before retrying
+        void fetch('/api/auth/me', { credentials: 'same-origin' }).then(
+          (res) => {
+            if (res.status === 401) {
+              stopped = true
+              notifyAuthExpired()
+              return
+            }
+            if (!stopped) retryTimer = setTimeout(connect, delay)
+          },
+          () => {
+            if (!stopped) retryTimer = setTimeout(connect, delay)
+          },
+        )
       }
     }
 
