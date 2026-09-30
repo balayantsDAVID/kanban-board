@@ -113,7 +113,9 @@ async def _transcribe(ctx: dict[str, Any], task_id: str, attempt: int) -> None:
         if task.tg_chat_id is not None:
             await enqueue_notification(
                 task.tg_chat_id,
-                texts.task_transcribed(task.id, task.title, transcript.text),
+                texts.task_transcribed(
+                    task.id, task.title, transcript.text, task.transcription_ms / 1000
+                ),
                 task.tg_message_id,
             )
 

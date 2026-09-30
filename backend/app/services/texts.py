@@ -36,8 +36,8 @@ def task_created(task_id: uuid.UUID, title: str) -> str:
     return f"✅ #{str(task_id)[:8]}: {title}"
 
 
-def task_transcribed(task_id: uuid.UUID, title: str, transcript: str) -> str:
-    return f"✅ #{str(task_id)[:8]}: {title}\n📝 {transcript}"
+def task_transcribed(task_id: uuid.UUID, title: str, transcript: str, seconds: float) -> str:
+    return f"✅ #{str(task_id)[:8]}: {title}\n📝 {transcript}\n⏱ {seconds:.1f} с"
 
 
 def status_changed(task_id: uuid.UUID, status: Status) -> str:
