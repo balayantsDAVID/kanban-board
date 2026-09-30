@@ -97,6 +97,10 @@ extraction is bounded to 3s with a title-only fallback. Audit rows are written t
 explicit `null` for `title`/`status`/`priority`/`tags` in PATCH → 422; `GET /api/tasks`
 takes `limit` (1–500, default 200).
 
+The Whisper model is downloaded on the worker's first start into the `hfcache` volume (not
+baked into the image). Image sizes: worker ~0.96 GB, api/bot/notifier ~0.39 GB, web ~94 MB.
+Docker needs ≥ 2 GB RAM for the `small` model (worker alone uses ~850 MB).
+
 ## Key decisions
 
 | Question | Decision | Why |
