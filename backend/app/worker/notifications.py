@@ -41,6 +41,7 @@ class WorkerSettings:
     queue_name = "notifications"
     max_jobs = 20
     max_tries = 5
+    health_check_interval = 30
     on_startup = on_startup
     on_shutdown = on_shutdown
     redis_settings = RedisSettings.from_dsn(get_settings().redis_url)
