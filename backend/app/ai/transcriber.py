@@ -7,6 +7,9 @@ from openai import AsyncOpenAI
 
 from app.core.config import get_settings
 
+SUPPORTED_LANGUAGES = {"ru", "en"}
+FALLBACK_LANGUAGE = "ru"
+
 
 @dataclass
 class Transcript:
@@ -32,6 +35,11 @@ class FasterWhisperTranscriber:
         import io
 
         segments, info = self._model.transcribe(io.BytesIO(audio), vad_filter=True, beam_size=1)
+        if info.language not in SUPPORTED_LANGUAGES:
+            # Short clips are often misdetected (e.g. as Arabic); retry with a fixed language.
+            segments, info = self._model.transcribe(
+                io.BytesIO(audio), vad_filter=True, beam_size=1, language=FALLBACK_LANGUAGE
+            )
         text = " ".join(segment.text.strip() for segment in segments).strip()
         return Transcript(text=text, language=info.language, duration_sec=info.duration)
 

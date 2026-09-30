@@ -69,7 +69,7 @@ async def voice_task(message: Message, user: User, session: AsyncSession, redis:
         session,
         redis,
         user_id=user.id,
-        title=texts.VOICE_ACK,
+        title=texts.VOICE_PLACEHOLDER_TITLE,
         source=Source.VOICE,
         transcription_status=TranscriptionStatus.QUEUED,
         tg_chat_id=message.chat.id,

@@ -89,3 +89,16 @@ async def test_notify_ignores_not_modified() -> None:
             raise TelegramBadRequest(method=None, message="message is not modified")  # type: ignore[arg-type]
 
     await notifications.notify({"bot": Bot()}, 1, "hi", 5)
+
+
+async def test_voice_placeholder_title_has_no_duplicate_emoji(
+    session: AsyncSession, user: User, redis: Redis, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def noop(*_a: object, **_kw: object) -> None:
+        return None
+
+    monkeypatch.setattr(handlers, "enqueue_transcription", noop)
+    msg = StubMessage(voice=SimpleNamespace(duration=3, file_id="f"))
+    await handlers.voice_task(msg, user, session, redis)  # type: ignore[arg-type]
+    task = (await session.execute(select(Task))).scalar_one()
+    assert "🎤" not in task.title
