@@ -82,10 +82,20 @@ Open `http://localhost:8080`, message the bot `/login`, follow the link.
    (`POST /api/tasks/{id}/retry`).
 5. A cron reconciler runs every minute and re-enqueues tasks stuck in `queued`/`processing`
    for more than 5 minutes (covers a worker crash or an enqueue that never happened), capping
-   at 3 recovery attempts before marking `failed`. This is deliberately simpler than a
+   total attempts (reconciler + manual retry share one counter) at 6 before marking `failed`. This is deliberately simpler than a
    transactional outbox, which would be overkill at this scale.
 6. If Redis is down when a voice note arrives, the ACK is edited to "Сервис перегружен" and
    the task stays `queued` for the reconciler to pick up once Redis returns.
+
+An empty transcript fails immediately with a "no speech" message (no retry). Text
+extraction is bounded to 3s with a title-only fallback. Audit rows are written to
+`task_events`.
+
+## Validation limits
+
+`title` 1–200 chars, `description` ≤ 2000, `tags` ≤ 10 × 50 chars, `raw_text` ≤ 4000;
+explicit `null` for `title`/`status`/`priority`/`tags` in PATCH → 422; `GET /api/tasks`
+takes `limit` (1–500, default 200).
 
 ## Key decisions
 
@@ -118,12 +128,14 @@ attachments other than voice.
 ## Development
 
 ```bash
-make up       # start everything
-make test     # run backend tests against real Postgres/Redis
+make up       # dev stack (publishes db/redis/api/web ports)
+make up-prod  # base compose only: no ports published for db/redis/api
+make test     # backend tests on isolated `app_test` DB and Redis db 15
 make lint     # ruff + mypy + oxlint + tsc
 make fmt      # ruff format + oxlint --fix
 make logs     # follow all services
-make down     # stop and remove volumes
+make down     # stop containers, keep data
+make clean    # stop and remove volumes
 ```
 
 CI (`.github/workflows/ci.yml`) runs lint, backend tests against real Postgres/Redis, a

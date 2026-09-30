@@ -27,8 +27,8 @@ NO_SPEECH = "🔇 Не услышал речи в сообщении. Попро
 
 
 def login_link(link: str) -> str:
-    # Telegram doesn't auto-linkify hosts without a TLD (localhost).
-    return f'🔑 <a href="{link}">Открыть дашборд</a> (ссылка действует 5 минут)'
+    # Telegram drops links to hosts without a TLD (localhost), so also show it as copyable text.
+    return f'🔑 <a href="{link}">Открыть дашборд</a> (действует 5 минут)\n\n<code>{link}</code>'
 
 
 def task_created(task_id: uuid.UUID, title: str) -> str:
