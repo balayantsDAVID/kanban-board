@@ -8,12 +8,12 @@ from redis.exceptions import RedisError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.extractor import build_extractor, extract_safe
-from app.bot import texts
 from app.core.config import get_settings
 from app.db.models import Source, TranscriptionStatus, User
 from app.queue.client import enqueue_transcription
 from app.services import auth as auth_service
 from app.services import tasks as tasks_service
+from app.services import texts
 
 router = Router()
 

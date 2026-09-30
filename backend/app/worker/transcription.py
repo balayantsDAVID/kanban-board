@@ -14,13 +14,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.extractor import Extractor, build_extractor, extract_safe
 from app.ai.transcriber import Transcriber, build_transcriber
-from app.bot import texts
 from app.core.config import get_settings
 from app.core.limits import MAX_ATTEMPTS
 from app.core.logging import get_logger
 from app.db.models import Task, TranscriptionStatus
 from app.db.session import get_sessionmaker
 from app.queue.client import enqueue_notification, enqueue_transcription
+from app.services import texts
 from app.services.events import publish, record
 from app.worker._bootstrap import ensure_event_loop
 
