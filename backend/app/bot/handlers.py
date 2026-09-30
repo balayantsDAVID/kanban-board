@@ -17,6 +17,7 @@ from app.schemas.task import TaskUpdate
 from app.services import auth as auth_service
 from app.services import tasks as tasks_service
 from app.services import texts
+from app.services.ratelimit import check_voice_rate
 
 router = Router()
 
@@ -115,6 +116,9 @@ async def voice_task(message: Message, user: User, session: AsyncSession, redis:
     settings = get_settings()
     if voice.duration > settings.voice_max_sec:
         await message.answer(texts.VOICE_TOO_LONG)
+        return
+    if not await check_voice_rate(redis, user.id, settings.voice_rate_per_min):
+        await message.answer(texts.RATE_LIMITED)
         return
 
     ack = await message.answer(texts.VOICE_ACK)

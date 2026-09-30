@@ -144,6 +144,24 @@ async def test_notify_ignores_not_modified() -> None:
     await notifications.notify({"bot": Bot()}, 1, "hi", 5)
 
 
+async def test_sixth_voice_in_a_minute_is_rate_limited(
+    session: AsyncSession, user: User, redis: Redis, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def noop(*_a: object, **_kw: object) -> None:
+        return None
+
+    monkeypatch.setattr(handlers, "enqueue_transcription", noop)
+    for _ in range(5):
+        msg = StubMessage(voice=SimpleNamespace(duration=3, file_id="f"))
+        await handlers.voice_task(msg, user, session, redis)  # type: ignore[arg-type]
+
+    msg = StubMessage(voice=SimpleNamespace(duration=3, file_id="f"))
+    await handlers.voice_task(msg, user, session, redis)  # type: ignore[arg-type]
+    assert msg.answers == [texts.RATE_LIMITED]
+    count = (await session.execute(select(Task))).scalars().all()
+    assert len(count) == 5
+
+
 async def test_voice_placeholder_title_has_no_duplicate_emoji(
     session: AsyncSession, user: User, redis: Redis, monkeypatch: pytest.MonkeyPatch
 ) -> None:

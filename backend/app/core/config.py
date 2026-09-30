@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     whisper_threads: int = 4
     whisper_language: str = ""
     voice_max_sec: int = 300
+    voice_rate_per_min: int = 5
 
     extractor: Literal["rules", "llm", "fake"] = "rules"
     openai_api_key: str | None = None

@@ -65,6 +65,7 @@ Open `http://localhost:8080`, message the bot `/login`, follow the link.
 | `WHISPER_MODEL`, `WHISPER_THREADS` | STT model size / CPU threads |
 | `WHISPER_LANGUAGE` | fixed language hint for Whisper (`ru`, `en`, …); empty = autodetect |
 | `VOICE_MAX_SEC` | reject voice notes longer than this |
+| `VOICE_RATE_PER_MIN` | max voice notes per user per minute |
 | `EXTRACTOR` | `rules` \| `llm` \| `fake` |
 | `OPENAI_API_KEY` | only needed for `TRANSCRIBER=openai` or `EXTRACTOR=llm` |
 
