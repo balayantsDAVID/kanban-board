@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import Conflict, NotFound
 from app.db.models import Priority, Source, Status, Task, TranscriptionStatus
+from app.core.limits import MAX_ATTEMPTS
 from app.schemas.task import TaskUpdate
 from app.services.events import publish
 
@@ -27,6 +28,7 @@ async def create(
     tg_chat_id: int | None = None,
     tg_message_id: int | None = None,
     tg_file_id: str | None = None,
+    transcription_attempt: int = 0,
 ) -> Task:
     task = Task(
         user_id=user_id,
@@ -41,6 +43,7 @@ async def create(
         tg_chat_id=tg_chat_id,
         tg_message_id=tg_message_id,
         tg_file_id=tg_file_id,
+        transcription_attempt=transcription_attempt,
     )
     session.add(task)
     await session.commit()
@@ -105,6 +108,8 @@ async def retry(session: AsyncSession, user_id: uuid.UUID, task_id: uuid.UUID) -
     task = await get(session, user_id, task_id)
     if task.transcription_status != TranscriptionStatus.FAILED:
         raise Conflict("task is not in a failed state")
+    if task.transcription_attempt >= MAX_ATTEMPTS:
+        raise Conflict("retry limit reached")
     task.transcription_status = TranscriptionStatus.QUEUED
     task.transcription_error = None
     task.transcription_attempt += 1

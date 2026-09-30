@@ -1,4 +1,5 @@
 import asyncio
+import time
 import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -29,7 +30,12 @@ logger = get_logger(__name__)
 TRANSCRIBE_TIMEOUT_SEC = 90
 STUCK_AFTER_MIN = 5
 MAX_TRIES = 3
-MAX_RECONCILE_ATTEMPTS = 3
+DOWNLOAD_TIMEOUT_SEC = 30
+from app.core.limits import MAX_ATTEMPTS
+
+
+class _NoSpeech(Exception):
+    pass
 
 
 async def transcribe(ctx: dict[str, Any], task_id: str, attempt: int) -> None:
@@ -49,15 +55,25 @@ async def transcribe(ctx: dict[str, Any], task_id: str, attempt: int) -> None:
         await session.refresh(task)  # updated_at is server-generated
         await publish(redis, task.user_id, "task.updated", task)
 
+        started = time.monotonic()
         try:
-            audio_io = await bot.download(task.tg_file_id)  # type: ignore[arg-type]
+            audio_io = await asyncio.wait_for(
+                bot.download(task.tg_file_id),  # type: ignore[arg-type]
+                DOWNLOAD_TIMEOUT_SEC,
+            )
             if audio_io is None:
                 raise RuntimeError("telegram returned no file content")
             audio = audio_io.read()
             transcript = await asyncio.wait_for(
                 transcriber.transcribe(audio), TRANSCRIBE_TIMEOUT_SEC
             )
+            if not transcript.text.strip():
+                raise _NoSpeech
             draft = await extractor.extract(transcript.text, datetime.now(UTC))
+        except _NoSpeech:
+            # Retrying would transcribe the same silence again.
+            await _mark_failed(session, redis, task, "no speech detected", texts.NO_SPEECH)
+            return
         except Exception as exc:
             logger.warning(
                 "transcription_attempt_failed", task_id=task_id, attempt=attempt, error=str(exc)
@@ -74,9 +90,16 @@ async def transcribe(ctx: dict[str, Any], task_id: str, attempt: int) -> None:
         task.raw_text = transcript.text
         task.language = transcript.language
         task.transcription_status = TranscriptionStatus.DONE
-        task.transcription_ms = int((transcript.duration_sec or 0) * 1000)
+        task.transcription_ms = int((time.monotonic() - started) * 1000)
         await session.commit()
         await session.refresh(task)
+        logger.info(
+            "transcription_done",
+            task_id=task_id,
+            ms=task.transcription_ms,
+            audio_sec=transcript.duration_sec,
+            language=transcript.language,
+        )
         await publish(redis, task.user_id, "task.updated", task)
         if task.tg_chat_id is not None:
             await enqueue_notification(
@@ -86,14 +109,20 @@ async def transcribe(ctx: dict[str, Any], task_id: str, attempt: int) -> None:
             )
 
 
-async def _mark_failed(session: AsyncSession, redis: Redis, task: Task, error: str) -> None:
+async def _mark_failed(
+    session: AsyncSession,
+    redis: Redis,
+    task: Task,
+    error: str,
+    message: str = texts.TRANSCRIPTION_FAILED,
+) -> None:
     task.transcription_status = TranscriptionStatus.FAILED
     task.transcription_error = error[:500]
     await session.commit()
     await session.refresh(task)
     await publish(redis, task.user_id, "task.updated", task)
     if task.tg_chat_id is not None:
-        await enqueue_notification(task.tg_chat_id, texts.TRANSCRIPTION_FAILED, task.tg_message_id)
+        await enqueue_notification(task.tg_chat_id, message, task.tg_message_id)
 
 
 async def reconcile(ctx: dict[str, Any]) -> None:
@@ -112,7 +141,7 @@ async def reconcile(ctx: dict[str, Any]) -> None:
         stuck_tasks = list(result.scalars())
 
         for task in stuck_tasks:
-            if task.transcription_attempt >= MAX_RECONCILE_ATTEMPTS:
+            if task.transcription_attempt >= MAX_ATTEMPTS:
                 await _mark_failed(session, redis, task, "gave up after reconciler retries")
                 continue
             task.transcription_attempt += 1

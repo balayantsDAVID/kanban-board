@@ -43,6 +43,7 @@ async def _voice_task(session: AsyncSession, redis: Redis, user: User):
         tg_chat_id=1,
         tg_message_id=42,
         tg_file_id="tg-file-id",
+        transcription_attempt=1,
     )
 
 
@@ -130,7 +131,7 @@ async def test_reconcile_requeues_stuck_task(
 
     await transcription.reconcile({"sessionmaker": get_sessionmaker(), "redis": redis})
 
-    assert enqueued == [(str(task.id), 1)]
+    assert enqueued == [(str(task.id), 2)]
 
 
 async def test_reconcile_gives_up_after_max_attempts(
@@ -144,7 +145,7 @@ async def test_reconcile_gives_up_after_max_attempts(
     old = datetime.now(UTC) - timedelta(minutes=10)
     await session.execute(
         text("UPDATE tasks SET updated_at = :dt, transcription_attempt = :n WHERE id = :id"),
-        {"dt": old, "n": transcription.MAX_RECONCILE_ATTEMPTS, "id": task.id},
+        {"dt": old, "n": transcription.MAX_ATTEMPTS, "id": task.id},
     )
     await session.commit()
 
@@ -153,3 +154,22 @@ async def test_reconcile_gives_up_after_max_attempts(
     async with get_sessionmaker()() as check_session:
         refreshed = await check_session.get(type(task), task.id)
         assert refreshed.transcription_status == TranscriptionStatus.FAILED
+
+
+async def test_empty_transcript_fails_without_retry(
+    session: AsyncSession, user: User, redis: Redis, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def fake_notify(*_a, **_kw):
+        return None
+
+    monkeypatch.setattr(transcription, "enqueue_notification", fake_notify)
+    task = await _voice_task(session, redis, user)
+
+    await transcription.transcribe(
+        _ctx(redis, FakeTranscriber(text="  "), job_try=1), str(task.id), 1
+    )
+
+    async with get_sessionmaker()() as check_session:
+        refreshed = await check_session.get(type(task), task.id)
+        assert refreshed.transcription_status == TranscriptionStatus.FAILED
+        assert refreshed.transcription_error == "no speech detected"

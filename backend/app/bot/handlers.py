@@ -75,8 +75,9 @@ async def voice_task(message: Message, user: User, session: AsyncSession, redis:
         tg_chat_id=message.chat.id,
         tg_message_id=ack.message_id,
         tg_file_id=voice.file_id,
+        transcription_attempt=1,
     )
     try:
-        await enqueue_transcription(str(task.id))
+        await enqueue_transcription(str(task.id), task.transcription_attempt)
     except RedisError:
         await ack.edit_text(texts.REDIS_UNAVAILABLE)
