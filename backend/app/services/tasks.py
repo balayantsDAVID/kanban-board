@@ -5,11 +5,13 @@ from redis.asyncio import Redis
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.bot import texts
 from app.core.errors import Conflict, NotFound
 from app.core.limits import MAX_ATTEMPTS
 from app.db.models import Priority, Source, Status, Task, TranscriptionStatus
+from app.queue.client import enqueue_notification
 from app.schemas.task import TaskUpdate
-from app.services.events import publish
+from app.services.events import publish, record
 
 
 async def create(
@@ -46,6 +48,8 @@ async def create(
         transcription_attempt=transcription_attempt,
     )
     session.add(task)
+    await session.flush()
+    record(session, task.id, "created", {"source": source.value})
     await session.commit()
     await session.refresh(task)
     await publish(redis, user_id, "task.created", task)
@@ -86,15 +90,15 @@ async def update(
     task = await get(session, user_id, task_id)
     changes = data.model_dump(exclude_unset=True)
     status_changed = "status" in changes and changes["status"] != task.status
+    old_status = task.status
     for field, value in changes.items():
         setattr(task, field, value)
+    if status_changed:
+        record(session, task.id, "status_changed", {"from": old_status, "to": task.status})
     await session.commit()
     await session.refresh(task)
     await publish(redis, user_id, "task.updated", task)
     if status_changed and task.tg_chat_id is not None:
-        from app.bot import texts
-        from app.queue.client import enqueue_notification
-
         await enqueue_notification(task.tg_chat_id, texts.status_changed(task.id, task.status))
     return task
 
@@ -108,7 +112,9 @@ async def delete(
     await publish(redis, user_id, "task.deleted", task)
 
 
-async def retry(session: AsyncSession, user_id: uuid.UUID, task_id: uuid.UUID) -> Task:
+async def retry(
+    session: AsyncSession, redis: Redis, user_id: uuid.UUID, task_id: uuid.UUID
+) -> Task:
     task = await get(session, user_id, task_id)
     if task.transcription_status != TranscriptionStatus.FAILED:
         raise Conflict("task is not in a failed state")
@@ -117,8 +123,10 @@ async def retry(session: AsyncSession, user_id: uuid.UUID, task_id: uuid.UUID) -
     task.transcription_status = TranscriptionStatus.QUEUED
     task.transcription_error = None
     task.transcription_attempt += 1
+    record(session, task.id, "retried", {"attempt": task.transcription_attempt})
     await session.commit()
     await session.refresh(task)
+    await publish(redis, user_id, "task.updated", task)
     return task
 
 

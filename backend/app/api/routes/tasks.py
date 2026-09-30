@@ -61,8 +61,9 @@ async def retry_task(
     task_id: uuid.UUID,
     user_id: uuid.UUID = Depends(current_user),
     session: AsyncSession = Depends(get_session),
+    redis: Redis = Depends(get_redis),
 ) -> Task:
-    task = await tasks_service.retry(session, user_id, task_id)
+    task = await tasks_service.retry(session, redis, user_id, task_id)
     await enqueue_transcription(str(task.id), task.transcription_attempt)
     return task
 

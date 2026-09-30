@@ -87,3 +87,12 @@ async def test_invalid_patch_is_rejected(auth_client: AsyncClient, body: dict) -
 async def test_create_rejects_overlong_title(auth_client: AsyncClient) -> None:
     resp = await auth_client.post("/api/tasks", json={"title": "x" * 201})
     assert resp.status_code == 422
+
+
+async def test_audit_events_are_recorded(auth_client: AsyncClient, session) -> None:
+    from sqlalchemy import text
+
+    created = await auth_client.post("/api/tasks", json={"title": "x"})
+    await auth_client.patch(f"/api/tasks/{created.json()['id']}", json={"status": "completed"})
+    rows = await session.execute(text("SELECT type FROM task_events ORDER BY created_at"))
+    assert [r[0] for r in rows] == ["created", "status_changed"]

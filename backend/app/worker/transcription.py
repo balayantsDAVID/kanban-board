@@ -21,7 +21,7 @@ from app.core.logging import get_logger
 from app.db.models import Task, TranscriptionStatus
 from app.db.session import get_sessionmaker
 from app.queue.client import enqueue_notification, enqueue_transcription
-from app.services.events import publish
+from app.services.events import publish, record
 from app.worker._bootstrap import ensure_event_loop
 
 ensure_event_loop()
@@ -91,6 +91,7 @@ async def transcribe(ctx: dict[str, Any], task_id: str, attempt: int) -> None:
         task.language = transcript.language
         task.transcription_status = TranscriptionStatus.DONE
         task.transcription_ms = int((time.monotonic() - started) * 1000)
+        record(session, task.id, "transcribed", {"ms": task.transcription_ms})
         await session.commit()
         await session.refresh(task)
         logger.info(
@@ -118,6 +119,7 @@ async def _mark_failed(
 ) -> None:
     task.transcription_status = TranscriptionStatus.FAILED
     task.transcription_error = error[:500]
+    record(session, task.id, "failed", {"error": error[:500]})
     await session.commit()
     await session.refresh(task)
     await publish(redis, task.user_id, "task.updated", task)
@@ -146,6 +148,7 @@ async def reconcile(ctx: dict[str, Any]) -> None:
                 continue
             task.transcription_attempt += 1
             task.transcription_status = TranscriptionStatus.QUEUED
+            record(session, task.id, "requeued", {"attempt": task.transcription_attempt})
             await session.commit()
             await enqueue_transcription(str(task.id), task.transcription_attempt)
             logger.info("reconciled_stuck_task", task_id=str(task.id))
