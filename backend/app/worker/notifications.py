@@ -6,7 +6,7 @@ from arq import Retry
 from arq.connections import RedisSettings
 
 from app.core.config import get_settings
-from app.core.logging import get_logger
+from app.core.logging import get_logger, setup_from_settings
 from app.worker._bootstrap import ensure_event_loop
 
 logger = get_logger(__name__)
@@ -28,6 +28,7 @@ async def notify(ctx: dict[str, Any], chat_id: int, text: str, message_id: int |
 
 
 async def on_startup(ctx: dict[str, Any]) -> None:
+    setup_from_settings()
     ctx["bot"] = Bot(token=get_settings().telegram_bot_token)
 
 

@@ -4,8 +4,10 @@ from sqlalchemy import text
 
 from app.core.config import get_settings
 from app.core.errors import AppError
+from app.core.logging import get_logger
 from app.db.session import get_sessionmaker
 
+logger = get_logger(__name__)
 router = APIRouter(tags=["system"])
 
 
@@ -26,7 +28,8 @@ async def ready() -> dict[str, str]:
         finally:
             await redis.aclose()
     except Exception as exc:
-        raise AppError(503, "not_ready", str(exc)) from exc
+        logger.warning("not_ready", error=str(exc))
+        raise AppError(503, "not_ready", "dependency unavailable") from exc
     return {"status": "ready"}
 
 

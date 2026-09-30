@@ -20,6 +20,7 @@ class Settings(BaseSettings):
 
     app_tz: str = "Asia/Yerevan"
     log_level: str = "info"
+    log_format: Literal["json", "console"] = "json"
 
     transcriber: Literal["faster_whisper", "openai", "fake"] = "faster_whisper"
     whisper_model: str = "small"

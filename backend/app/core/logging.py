@@ -17,6 +17,13 @@ def _redact(
     return event_dict
 
 
+def setup_from_settings() -> None:
+    from app.core.config import get_settings
+
+    settings = get_settings()
+    configure_logging(settings.log_level, settings.log_format == "json")
+
+
 def configure_logging(level: str, json: bool = True) -> None:
     logging.basicConfig(format="%(message)s", stream=sys.stdout, level=level.upper())
 
@@ -27,6 +34,7 @@ def configure_logging(level: str, json: bool = True) -> None:
             structlog.contextvars.merge_contextvars,
             structlog.processors.add_log_level,
             structlog.processors.TimeStamper(fmt="iso"),
+            structlog.processors.format_exc_info,
             _redact,
             renderer,
         ],

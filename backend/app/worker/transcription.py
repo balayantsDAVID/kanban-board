@@ -4,6 +4,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+import structlog
 from aiogram import Bot
 from arq import Retry
 from arq.connections import RedisSettings
@@ -16,7 +17,7 @@ from app.ai.extractor import Extractor, build_extractor, extract_safe
 from app.ai.transcriber import Transcriber, build_transcriber
 from app.core.config import get_settings
 from app.core.limits import MAX_ATTEMPTS
-from app.core.logging import get_logger
+from app.core.logging import get_logger, setup_from_settings
 from app.db.models import Task, TranscriptionStatus
 from app.db.session import get_sessionmaker
 from app.queue.client import enqueue_notification, enqueue_transcription
@@ -39,6 +40,14 @@ class _NoSpeech(Exception):
 
 
 async def transcribe(ctx: dict[str, Any], task_id: str, attempt: int) -> None:
+    structlog.contextvars.bind_contextvars(task_id=task_id)
+    try:
+        await _transcribe(ctx, task_id, attempt)
+    finally:
+        structlog.contextvars.clear_contextvars()
+
+
+async def _transcribe(ctx: dict[str, Any], task_id: str, attempt: int) -> None:
     sessionmaker = ctx["sessionmaker"]
     redis: Redis = ctx["redis"]
     bot: Bot = ctx["bot"]
@@ -154,6 +163,7 @@ async def reconcile(ctx: dict[str, Any]) -> None:
 
 
 async def on_startup(ctx: dict[str, Any]) -> None:
+    setup_from_settings()
     settings = get_settings()
     ctx["bot"] = Bot(token=settings.telegram_bot_token)
     ctx["redis"] = Redis.from_url(settings.redis_url)
