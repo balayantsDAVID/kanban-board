@@ -101,6 +101,18 @@ The Whisper model is downloaded on the worker's first start into the `hfcache` v
 baked into the image). Image sizes: worker ~0.96 GB, api/bot/notifier ~0.39 GB, web ~94 MB.
 Docker needs ≥ 2 GB RAM for the `small` model (worker alone uses ~850 MB).
 
+## Failure drills (checked on Docker Desktop, 2 GB)
+
+| Scenario | Result |
+|---|---|
+| Stop Redis | `/ready` → 503 `dependency unavailable`; API writes keep working (events are best-effort); recovers ~4s after start |
+| Restart Postgres | `/ready` → 503 meanwhile; recovers ~4s, no restart of other services needed |
+| Worker OOM-killed (two Whisper models at once) | container restarted by `unless-stopped` within seconds |
+| `docker kill` worker | stays down (Docker treats a manual kill as a stop); `make up` brings it back and the reconciler requeues stuck tasks |
+
+Voice latency on CPU with `small`: ~9–21 s per 2–5 s clip; use `WHISPER_MODEL=base` for speed.
+Unsupported detected languages (not ru/en) are re-transcribed as Russian.
+
 ## Key decisions
 
 | Question | Decision | Why |
