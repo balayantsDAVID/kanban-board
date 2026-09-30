@@ -23,10 +23,11 @@ class Transcriber(Protocol):
 
 
 class FasterWhisperTranscriber:
-    def __init__(self, model_name: str, threads: int) -> None:
+    def __init__(self, model_name: str, threads: int, language: str = "") -> None:
         from faster_whisper import WhisperModel
 
         self._model = WhisperModel(model_name, compute_type="int8", cpu_threads=threads)
+        self._language = language or None
 
     async def transcribe(self, audio: bytes) -> Transcript:
         return await asyncio.to_thread(self._transcribe_sync, audio)
@@ -34,12 +35,17 @@ class FasterWhisperTranscriber:
     def _transcribe_sync(self, audio: bytes) -> Transcript:
         import io
 
-        segments, info = self._model.transcribe(io.BytesIO(audio), vad_filter=True, beam_size=1)
-        if info.language not in SUPPORTED_LANGUAGES:
-            # Short clips are often misdetected (e.g. as Arabic); retry with a fixed language.
+        if self._language:
             segments, info = self._model.transcribe(
-                io.BytesIO(audio), vad_filter=True, beam_size=1, language=FALLBACK_LANGUAGE
+                io.BytesIO(audio), vad_filter=True, beam_size=1, language=self._language
             )
+        else:
+            segments, info = self._model.transcribe(io.BytesIO(audio), vad_filter=True, beam_size=1)
+            if info.language not in SUPPORTED_LANGUAGES:
+                # Short clips are often misdetected (e.g. as Arabic); retry with a fixed language.
+                segments, info = self._model.transcribe(
+                    io.BytesIO(audio), vad_filter=True, beam_size=1, language=FALLBACK_LANGUAGE
+                )
         text = " ".join(segment.text.strip() for segment in segments).strip()
         return Transcript(text=text, language=info.language, duration_sec=info.duration)
 
@@ -80,4 +86,6 @@ def build_transcriber() -> Transcriber:
         return OpenAITranscriber(settings.openai_api_key)
     if settings.transcriber == "fake":
         return FakeTranscriber()
-    return FasterWhisperTranscriber(settings.whisper_model, settings.whisper_threads)
+    return FasterWhisperTranscriber(
+        settings.whisper_model, settings.whisper_threads, settings.whisper_language
+    )

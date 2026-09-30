@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     transcriber: Literal["faster_whisper", "openai", "fake"] = "faster_whisper"
     whisper_model: str = "small"
     whisper_threads: int = 4
+    whisper_language: str = ""
     voice_max_sec: int = 300
 
     extractor: Literal["rules", "llm", "fake"] = "rules"

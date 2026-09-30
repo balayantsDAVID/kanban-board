@@ -63,6 +63,7 @@ Open `http://localhost:8080`, message the bot `/login`, follow the link.
 | `APP_TZ` | timezone used to interpret relative dates ("завтра в 10") |
 | `TRANSCRIBER` | `faster_whisper` \| `openai` \| `fake` |
 | `WHISPER_MODEL`, `WHISPER_THREADS` | STT model size / CPU threads |
+| `WHISPER_LANGUAGE` | fixed language hint for Whisper (`ru`, `en`, …); empty = autodetect |
 | `VOICE_MAX_SEC` | reject voice notes longer than this |
 | `EXTRACTOR` | `rules` \| `llm` \| `fake` |
 | `OPENAI_API_KEY` | only needed for `TRANSCRIBER=openai` or `EXTRACTOR=llm` |
