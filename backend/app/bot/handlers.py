@@ -31,7 +31,7 @@ async def help_cmd(message: Message) -> None:
 @router.message(Command("login"))
 async def login(message: Message, user: User, redis: Redis) -> None:
     link = await auth_service.issue_login_link(redis, get_settings(), user.id)
-    await message.answer(texts.login_link(link), disable_web_page_preview=True)
+    await message.answer(texts.login_link(link), parse_mode="HTML", disable_web_page_preview=True)
 
 
 @router.message(F.text)
