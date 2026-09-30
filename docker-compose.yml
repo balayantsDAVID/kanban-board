@@ -92,6 +92,8 @@ services:
       target: worker
     env_file: .env
     command: arq app.worker.transcription.WorkerSettings
+    volumes:
+      - hfcache:/home/app/.cache/huggingface
     restart: unless-stopped
     depends_on:
       migrate:
@@ -103,7 +105,7 @@ services:
       interval: 15s
       timeout: 5s
       retries: 5
-      start_period: 30s
+      start_period: 60s
 
   web:
     build:
@@ -116,3 +118,4 @@ services:
 volumes:
   pgdata:
   redisdata:
+  hfcache:

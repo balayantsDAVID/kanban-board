@@ -23,6 +23,7 @@ dependencies = [
 [project.optional-dependencies]
 worker = [
     "faster-whisper==1.1.0",
+    "av==14.0.1",
     "requests==2.32.3",
 ]
 

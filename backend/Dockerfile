@@ -31,12 +31,15 @@ LABEL org.opencontainers.image.title="ai-task-bot" \
 USER app
 CMD ["uvicorn", "app.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
 
-# Model is baked in at build time so the first request doesn't pay for the
-# download, and the image still works with no network access at runtime.
-FROM app AS worker
-USER root
+FROM base AS worker-deps
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-dev --no-cache --no-install-project --extra worker
+
+# The Whisper model is downloaded on first start into the hfcache volume,
+# which keeps the image small and rebuilds fast.
+FROM worker-deps AS worker
+COPY app ./app
 RUN uv sync --frozen --no-dev --no-cache --extra worker
-ENV HF_HOME=/home/app/.cache/huggingface
-RUN python -c "from faster_whisper import WhisperModel; WhisperModel('small', compute_type='int8')" \
-    && chown -R app:app /home/app/.cache
+ENV PATH="/app/.venv/bin:${PATH}" HF_HOME=/home/app/.cache/huggingface
+RUN mkdir -p $HF_HOME && chown -R app:app /home/app/.cache
 USER app
