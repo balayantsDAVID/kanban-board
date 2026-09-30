@@ -36,4 +36,5 @@ export const api = {
   updateTask: (id: string, patch: Record<string, unknown>) =>
     request<Task>(`/tasks/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
   deleteTask: (id: string) => request(`/tasks/${id}`, { method: 'DELETE' }),
+  retryTask: (id: string) => request<Task>(`/tasks/${id}/retry`, { method: 'POST' }),
 }
