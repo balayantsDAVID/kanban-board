@@ -1,7 +1,37 @@
+import { useState } from 'react'
 import { Board } from './components/Board'
 import { useAuth } from './hooks/useAuth'
 import { useEventStream } from './hooks/useEventStream'
 import { useTasks } from './hooks/useTasks'
+
+function NewTaskForm({ onCreate }: { onCreate: (title: string) => void }) {
+  const [title, setTitle] = useState('')
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault()
+    const trimmed = title.trim()
+    if (!trimmed) return
+    onCreate(trimmed)
+    setTitle('')
+  }
+
+  return (
+    <form onSubmit={submit} className="mb-4 flex gap-2">
+      <input
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        placeholder="New task"
+        className="flex-1 rounded border border-slate-800 bg-slate-900 px-3 py-1.5 text-sm text-slate-200 placeholder:text-slate-500"
+      />
+      <button
+        type="submit"
+        className="rounded bg-slate-800 px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-700"
+      >
+        Add
+      </button>
+    </form>
+  )
+}
 
 function LoginGate({ error }: { error: string | null }) {
   return (
@@ -16,7 +46,18 @@ function LoginGate({ error }: { error: string | null }) {
 }
 
 function Dashboard({ onLogout }: { onLogout: () => void }) {
-  const { tasks, loading, error, clearError, refetch, updateStatus, retry, applyEvent } = useTasks()
+  const {
+    tasks,
+    loading,
+    error,
+    clearError,
+    refetch,
+    updateStatus,
+    createTask,
+    deleteTask,
+    retry,
+    applyEvent,
+  } = useTasks()
   const connection = useEventStream(applyEvent, refetch)
 
   const counts = {
@@ -62,10 +103,12 @@ function Dashboard({ onLogout }: { onLogout: () => void }) {
           </div>
         )}
         {loading && <p className="mb-4 text-sm text-slate-500">Loading…</p>}
+        <NewTaskForm onCreate={(title) => void createTask(title)} />
         <Board
           tasks={tasks}
           onStatusChange={(id, status) => void updateStatus(id, status)}
           onRetry={(id) => void retry(id)}
+          onDelete={(id) => void deleteTask(id)}
         />
       </div>
     </div>

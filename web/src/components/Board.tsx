@@ -8,10 +8,12 @@ export function Board({
   tasks,
   onStatusChange,
   onRetry,
+  onDelete,
 }: {
   tasks: Task[]
   onStatusChange: (id: string, status: Status) => void
   onRetry: (id: string) => void
+  onDelete: (id: string) => void
 }) {
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
@@ -31,6 +33,7 @@ export function Board({
             tasks={tasks.filter((t) => t.status === status)}
             onStatusChange={onStatusChange}
             onRetry={onRetry}
+            onDelete={onDelete}
           />
         ))}
       </div>

@@ -36,10 +36,12 @@ export function TaskCard({
   task,
   onStatusChange,
   onRetry,
+  onDelete,
 }: {
   task: Task
   onStatusChange: (status: Status) => void
   onRetry: () => void
+  onDelete: () => void
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: task.id,
@@ -72,6 +74,15 @@ export function TaskCard({
         <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] uppercase ${PRIORITY_STYLE[task.priority]}`}>
           {task.priority}
         </span>
+        <button
+          onClick={() => {
+            if (window.confirm('Delete this task?')) onDelete()
+          }}
+          className="shrink-0 text-slate-600 hover:text-red-400"
+          aria-label="Delete task"
+        >
+          ✕
+        </button>
       </div>
 
       {task.tags.length > 0 && (

@@ -13,11 +13,13 @@ export function Column({
   tasks,
   onStatusChange,
   onRetry,
+  onDelete,
 }: {
   status: Status
   tasks: Task[]
   onStatusChange: (id: string, status: Status) => void
   onRetry: (id: string) => void
+  onDelete: (id: string) => void
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: status })
 
@@ -40,6 +42,7 @@ export function Column({
           task={task}
           onStatusChange={(next) => onStatusChange(task.id, next)}
           onRetry={() => onRetry(task.id)}
+          onDelete={() => onDelete(task.id)}
         />
       ))}
     </div>

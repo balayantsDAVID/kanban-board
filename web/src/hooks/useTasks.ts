@@ -46,6 +46,29 @@ export function useTasks() {
     }
   }, [])
 
+  const createTask = useCallback(async (title: string) => {
+    try {
+      const task = await api.createTask(title)
+      setTasks((current) => [task, ...current])
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create task')
+    }
+  }, [])
+
+  const deleteTask = useCallback(async (id: string) => {
+    let previous: Task[] = []
+    setTasks((current) => {
+      previous = current
+      return current.filter((t) => t.id !== id)
+    })
+    try {
+      await api.deleteTask(id)
+    } catch (err) {
+      setTasks(previous)
+      setError(err instanceof Error ? err.message : 'Failed to delete task')
+    }
+  }, [])
+
   const retry = useCallback(async (id: string) => {
     try {
       const task = await api.retryTask(id)
@@ -68,5 +91,16 @@ export function useTasks() {
     })
   }, [])
 
-  return { tasks, loading, error, clearError: () => setError(null), refetch, updateStatus, retry, applyEvent }
+  return {
+    tasks,
+    loading,
+    error,
+    clearError: () => setError(null),
+    refetch,
+    updateStatus,
+    createTask,
+    deleteTask,
+    retry,
+    applyEvent,
+  }
 }
