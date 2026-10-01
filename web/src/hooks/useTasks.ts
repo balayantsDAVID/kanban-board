@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '../api'
 import type { Status, Task } from '../types'
 
@@ -11,6 +11,10 @@ export function useTasks() {
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const tasksRef = useRef(tasks)
+  useEffect(() => {
+    tasksRef.current = tasks
+  }, [tasks])
 
   const refetch = useCallback(async () => {
     try {
@@ -33,11 +37,8 @@ export function useTasks() {
   }, [])
 
   const updateStatus = useCallback(async (id: string, status: Status) => {
-    let previous: Task[] = []
-    setTasks((current) => {
-      previous = current
-      return current.map((t) => (t.id === id ? { ...t, status } : t))
-    })
+    const previous = tasksRef.current
+    setTasks(previous.map((t) => (t.id === id ? { ...t, status } : t)))
     try {
       await api.updateTask(id, { status })
     } catch (err) {
@@ -56,11 +57,8 @@ export function useTasks() {
   }, [])
 
   const deleteTask = useCallback(async (id: string) => {
-    let previous: Task[] = []
-    setTasks((current) => {
-      previous = current
-      return current.filter((t) => t.id !== id)
-    })
+    const previous = tasksRef.current
+    setTasks(previous.filter((t) => t.id !== id))
     try {
       await api.deleteTask(id)
     } catch (err) {
