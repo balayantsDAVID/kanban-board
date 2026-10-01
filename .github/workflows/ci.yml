@@ -151,6 +151,31 @@ jobs:
           cache-from: type=gha,scope=web
           cache-to: type=gha,mode=max,scope=web
 
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build .env
+        run: |
+          cp .env.example .env
+          sed -i "s/^JWT_SECRET=.*/JWT_SECRET=$(printf 'x%.0s' $(seq 32))/" .env
+          sed -i "s/^TELEGRAM_BOT_TOKEN=.*/TELEGRAM_BOT_TOKEN=123:test/" .env
+
+      - name: Start core services
+        run: >
+          docker compose -f docker-compose.yml -f docker-compose.dev.yml
+          up -d --build --wait postgres redis migrate api web
+
+      - name: Check health endpoints
+        run: |
+          curl -f http://localhost:8000/ready
+          curl -f http://localhost:8080/
+
+      - name: Dump logs on failure
+        if: failure()
+        run: docker compose logs
+
   gitleaks:
     runs-on: ubuntu-latest
     steps:
