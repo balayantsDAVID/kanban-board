@@ -105,7 +105,7 @@ jobs:
 
       - name: pytest
         working-directory: backend
-        run: uv run pytest --junitxml=junit.xml --cov=app --cov-report=term
+        run: uv run pytest --junitxml=junit.xml --cov=app --cov-report=term --cov-fail-under=80
 
       - name: Upload junit
         if: always()
