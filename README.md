@@ -69,6 +69,42 @@ Open `http://localhost:8080`, message the bot `/login`, follow the link.
 | `EXTRACTOR` | `rules` \| `llm` \| `fake` |
 | `OPENAI_API_KEY` | only needed for `TRANSCRIBER=openai` or `EXTRACTOR=llm` |
 
+## Demo
+
+1. Send a voice note to the bot → it ACKs "🎤 Распознаю…" instantly.
+2. The task appears on the dashboard in `pending` with a spinner, then fills in with the
+   transcript and the recognition time once the worker finishes.
+3. Click "✅ Done" in the bot or drag the card to "Completed" on the dashboard — both sides
+   update live via SSE, and the bot posts a `🔄 → Completed` message.
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant B as Bot
+    participant Q as Redis (transcription queue)
+    participant W as Worker
+    participant DB as Postgres
+    participant S as SSE/Dashboard
+
+    U->>B: voice note
+    B->>U: 🎤 Распознаю… (ACK)
+    B->>DB: INSERT task (queued)
+    B->>Q: enqueue transcribe(task_id)
+    Q->>W: deliver job
+    W->>W: download + faster-whisper + extract
+    W->>DB: UPDATE task (done, transcription_ms)
+    W->>S: PUBLISH task.updated
+    S->>U: dashboard card updates live
+    W->>U: ✅ title + transcript + ⏱ seconds
+```
+
+## Known limitations
+
+Deliberately out of scope for this project: Prometheus/Grafana, Kubernetes, Telegram webhook
+mode (long polling only), a transactional outbox for the dual-write, SSE event replay on
+reconnect, OAuth, editing task fields from the dashboard (only status and delete), and a
+multilingual dashboard UI.
+
 ## Voice pipeline & resilience
 
 1. Bot replies "🎤 Распознаю…" immediately and remembers that message's id — no download
@@ -113,7 +149,16 @@ Docker needs ≥ 2 GB RAM for the `small` model (worker alone uses ~850 MB).
 | `docker kill` worker | stays down (Docker treats a manual kill as a stop); `make up` brings it back and the reconciler requeues stuck tasks |
 
 Voice latency on CPU with `small`: ~9–21 s per 2–5 s clip; use `WHISPER_MODEL=base` for speed.
-Unsupported detected languages (not ru/en) are re-transcribed as Russian.
+Unsupported detected languages (not ru/en) are re-transcribed as Russian, unless
+`WHISPER_LANGUAGE` is set. `GET /api/stats/transcription` reports `done`/`failed` counts and
+`p50_ms`/`p95_ms` over a user's completed transcriptions.
+
+## Versions
+
+| Version | What's in it |
+|---|---|
+| `v1.0` | Voice/text → task pipeline, Kanban dashboard, SSE, retries/reconciler, Docker compose, CI |
+| `v2.0` | Bot `/tasks` + inline status buttons, dashboard task create/delete, voice rate limiting, tuned health checks, `WHISPER_LANGUAGE` hint, transcription latency stats, CI caching + compose smoke test + coverage gate + frontend hook tests, nginx security headers, HTTPS cookie guard |
 
 ## Key decisions
 
