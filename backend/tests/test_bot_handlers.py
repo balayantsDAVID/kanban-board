@@ -9,8 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.bot import handlers
 from app.db.models import Source, Status, Task, TranscriptionStatus, User
+from app.services import ratelimit, texts
 from app.services import tasks as tasks_service
-from app.services import texts
 from app.worker import notifications
 
 
@@ -151,6 +151,7 @@ async def test_sixth_voice_in_a_minute_is_rate_limited(
         return None
 
     monkeypatch.setattr(handlers, "enqueue_transcription", noop)
+    monkeypatch.setattr(ratelimit, "_clock", lambda: 1_000_000.0)
     for _ in range(5):
         msg = StubMessage(voice=SimpleNamespace(duration=3, file_id="f"))
         await handlers.voice_task(msg, user, session, redis)  # type: ignore[arg-type]
