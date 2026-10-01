@@ -33,3 +33,15 @@ def test_openai_transcriber_without_key_rejected() -> None:
 def test_llm_extractor_without_key_rejected() -> None:
     with pytest.raises(ValidationError, match="openai_api_key"):
         Settings(**_base_env(extractor="llm"))  # type: ignore[arg-type]
+
+
+def test_https_web_url_without_secure_cookie_rejected() -> None:
+    with pytest.raises(ValidationError, match="cookie_secure"):
+        Settings(**_base_env(web_url="https://example.com"))  # type: ignore[arg-type]
+
+
+def test_https_web_url_with_secure_cookie_accepted() -> None:
+    settings = Settings(
+        **_base_env(web_url="https://example.com", cookie_secure="true")  # type: ignore[arg-type]
+    )
+    assert settings.cookie_secure is True

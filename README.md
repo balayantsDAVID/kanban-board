@@ -59,7 +59,7 @@ Open `http://localhost:8080`, message the bot `/login`, follow the link.
 | `DATABASE_URL` / `REDIS_URL` | compose service DNS names by default |
 | `JWT_SECRET` | ≥32 chars, signs the session cookie |
 | `WEB_URL` | used to build magic-login links |
-| `COOKIE_SECURE` | `false` in dev (no HTTPS), `true` in prod |
+| `COOKIE_SECURE` | `false` in dev (no HTTPS), `true` in prod; startup fails if `WEB_URL` is `https://` and this is `false` |
 | `APP_TZ` | timezone used to interpret relative dates ("завтра в 10") |
 | `TRANSCRIBER` | `faster_whisper` \| `openai` \| `fake` |
 | `WHISPER_MODEL`, `WHISPER_THREADS` | STT model size / CPU threads |

@@ -43,6 +43,12 @@ class Settings(BaseSettings):
         return self
 
     @model_validator(mode="after")
+    def _check_cookie_secure(self) -> "Settings":
+        if self.web_url.startswith("https://") and not self.cookie_secure:
+            raise ValueError("cookie_secure must be true when web_url is https")
+        return self
+
+    @model_validator(mode="after")
     def _check_openai_key(self) -> "Settings":
         needs_key = self.transcriber == "openai" or self.extractor == "llm"
         if needs_key and not self.openai_api_key:
