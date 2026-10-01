@@ -84,3 +84,11 @@ async def stats(
     session: AsyncSession = Depends(get_session),
 ) -> dict[str, int]:
     return await tasks_service.stats(session, user_id)
+
+
+@stats_router.get("/stats/transcription")
+async def transcription_stats(
+    user_id: uuid.UUID = Depends(current_user),
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, int | None]:
+    return await tasks_service.transcription_stats(session, user_id)

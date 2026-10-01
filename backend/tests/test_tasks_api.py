@@ -53,6 +53,32 @@ async def test_stats_counts_by_status(auth_client: AsyncClient) -> None:
     assert body["completed"] == 1
 
 
+async def test_transcription_stats_percentiles(
+    auth_client: AsyncClient, session: AsyncSession, redis: Redis, user
+) -> None:
+    from app.db.models import Source, TranscriptionStatus
+    from app.services import tasks as tasks_service
+
+    for ms in (100, 200, 300):
+        task = await tasks_service.create(
+            session,
+            redis,
+            user_id=user.id,
+            title="v",
+            source=Source.VOICE,
+            transcription_status=TranscriptionStatus.DONE,
+        )
+        task.transcription_ms = ms
+        await session.commit()
+
+    resp = await auth_client.get("/api/stats/transcription")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["done"] == 3
+    assert body["failed"] == 0
+    assert body["p50_ms"] == 200
+
+
 async def test_tasks_require_auth(client: AsyncClient) -> None:
     resp = await client.get("/api/tasks")
     assert resp.status_code == 401

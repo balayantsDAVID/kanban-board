@@ -142,3 +142,27 @@ async def stats(session: AsyncSession, user_id: uuid.UUID) -> dict[str, int]:
     for status, count in result.all():
         counts[status] = count
     return counts
+
+
+async def transcription_stats(session: AsyncSession, user_id: uuid.UUID) -> dict[str, int | None]:
+    done_filter = (Task.user_id == user_id, Task.transcription_status == TranscriptionStatus.DONE)
+    done, p50, p95 = (
+        await session.execute(
+            select(
+                func.count(),
+                func.percentile_cont(0.5).within_group(Task.transcription_ms),
+                func.percentile_cont(0.95).within_group(Task.transcription_ms),
+            ).where(*done_filter)
+        )
+    ).one()
+    failed = await session.scalar(
+        select(func.count()).where(
+            Task.user_id == user_id, Task.transcription_status == TranscriptionStatus.FAILED
+        )
+    )
+    return {
+        "done": done,
+        "failed": failed or 0,
+        "p50_ms": int(p50) if p50 is not None else None,
+        "p95_ms": int(p95) if p95 is not None else None,
+    }
